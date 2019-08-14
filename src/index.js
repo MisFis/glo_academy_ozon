@@ -1,6 +1,6 @@
 
 function init() {
-    // чекбокс
+    // Чекбокс
     const checkbox = document.querySelector('#discount-checkbox');
 
     checkbox.addEventListener('change', (event) => {
@@ -12,7 +12,7 @@ function init() {
         }
     });
 
-    // Корзина
+    // ##### КОРЗИНА #####
     const btnCart = document.querySelector('#cart');
     const modalCart = document.querySelector('.cart');
     const closeModal = document.querySelector('.cart-close');
@@ -38,7 +38,6 @@ function init() {
        const btn = card.querySelector('.btn');
        btn.addEventListener('click', (event) => {
            addCardInBucket(card);
-           countElementBasket();
 
            // btn.setAttribute('disabled', 'true');
            cardModalEmpty.remove();
@@ -53,17 +52,22 @@ function init() {
         const copyBtnNode = cardClone.querySelector('.btn');
         copyBtnNode.textContent = 'Удалить';
         copyBtnNode.addEventListener('click', (event) => removeCardInBucket(cardClone, event));
+
+        countElementBasket();
+        sumInBasket();
     };
 
     // удаление
     const removeCardInBucket = (card, event) => {
         card.remove();
 
+        sumInBasket();
         countElementBasket();
         if (countInBucket === 0) {
             cardModal.appendChild(cardModalEmpty);
         }
     };
+
     // подсчет элементов в корзине
     const countElementBasket = () => {
         const countNode = btnCart.querySelector('.counter');
@@ -71,6 +75,20 @@ function init() {
         countInBucket = cardInBasketNode.length;
 
         countNode.textContent = String(countInBucket);
+    };
+
+    // сумма в корзине
+    const sumInBasket = () => {
+        const cardInBasketNode = cardModal.querySelectorAll('.card');
+        let totalPrice = 0;
+
+        cardInBasketNode.forEach(item => {
+            const price = item.querySelector('.card-price');
+            totalPrice += parseFloat(price.textContent);
+        });
+
+        const totalPriceNode = document.querySelector('.cart-total');
+        totalPriceNode.querySelector('span').textContent = String(totalPrice);
     };
 }
 
