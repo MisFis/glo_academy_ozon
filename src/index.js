@@ -8,10 +8,45 @@
         modalPopup: document.querySelector('.cart'),
         cardModalContainer: document.querySelector('.cart-wrapper'),
         cardContainer: document.querySelector('.goods'),
+        catalogButton: document.querySelector('.catalog-button'),
+        catalogContainer: document.querySelector('.catalog-list'),
+        catalogWrapper: document.querySelector('.catalog'),
         // Нельзя в кэш
         cards: document.querySelectorAll('.goods .card'),
         cardInBasketNode: () => document.querySelectorAll('.cart-wrapper .card'),
     };
+
+    const template = {
+        card: (card) => {
+            const template = `<div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                        <div class="card" data-category="${card.category}">
+                            <div class="card-img-wrapper">
+                                <span class="card-img-top"
+                                    style="background-image: url('${card.img}')"></span>
+                            </div>
+                            ${card.sale ? ' <div class="card-sale">🔥Hot Sale🔥</div>' : ''}
+                            <div class="card-body justify-content-between">
+                                <div class="card-price">${card.price} ₽</div>
+                                <h5 class="card-title">${card.title}</h5>
+                                <button class="btn btn-primary">В корзину</button>
+                            </div>
+                        </div>
+                    </div>`;
+            return  createElementFromHTML(template);
+        }
+    };
+
+    const filterData = {
+        category: null
+    };
+
+    function createElementFromHTML(htmlString) {
+        const div = document.createElement('div');
+        div.innerHTML = htmlString.trim();
+
+        // Change this to div.childNodes to support multiple top-level nodes
+        return div.firstChild;
+    }
     // Д1
     // Чекбокс
     function toggleCheckbox() {
@@ -100,7 +135,7 @@
 
         const sumInBasketLazy = (newCard, command) => {
             const price = newCard.querySelector('.card-price');
-            totalPrice =  command === 'add' ? totalPrice + parseFloat(price.textContent)
+            totalPrice = command === 'add' ? totalPrice + parseFloat(price.textContent)
                 : totalPrice - parseFloat(price.textContent);
 
             const totalPriceNode = document.querySelector('.cart-total');
@@ -122,23 +157,40 @@
                 const isSale = card.querySelector('.card-sale');
                 const priceCard = parseFloat(card.querySelector('.card-price').textContent);
 
-                if (checked) {
-                    if (!isSale) {
-                        card.parentNode.style.display = 'none';
-                        return;
-                    }
-                } else {
-                    card.parentNode.style.display = '';
-                }
-
-                if ((!!maxPrice && maxPrice < priceCard) || (!!minPrice && minPrice > priceCard)) {
+                if (checked && !isSale) {
                     card.parentNode.style.display = 'none';
-                    return;
+                } else if (filterData.category && card.dataset.category !== filterData.category) {
+                    card.parentNode.style.display = 'none';
+                } else if ((!!maxPrice && maxPrice < priceCard) || (!!minPrice && minPrice > priceCard)) {
+                    card.parentNode.style.display = 'none';
                 } else {
                     card.parentNode.style.display = '';
                 }
             });
         };
+
+        // Д3
+        // Фильтр по категорями ДОП
+        let oldSelectedCategory = null;
+        domValue.catalogContainer.addEventListener('click', (event) => {
+            const target = event.target.closest('li');
+            if (target) {
+                if (target === oldSelectedCategory) {
+                    filterData.category = null;
+                    oldSelectedCategory.classList.remove('active');
+                    oldSelectedCategory = null;
+                    filterCardsEvent();
+                    return;
+                }
+                if (oldSelectedCategory) {
+                    oldSelectedCategory.classList.remove('active');
+                }
+                target.classList.add('active');
+                filterData.category = target.textContent;
+                oldSelectedCategory = target;
+                filterCardsEvent();
+            }
+        });
 
         stockCheckbox.addEventListener('change', filterCardsEvent);
         min.addEventListener('change', filterCardsEvent);
@@ -163,7 +215,64 @@
         document.querySelector('.search-btn').addEventListener('click', searchText);
     }
 
-    toggleCheckbox();
-    bucketApi();
-    filterCard();
+    // Д3
+    // серверное API
+    function getServerData() {
+        return fetch('./db/db.json')
+            .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Все плохо, пора бежать с сайта, ' +
+                            'товаров не будет и статус там странный, смотри ' + response.status);
+                    }
+                    return response.json();
+                }
+            )
+            .then(renderCard)
+            .catch(error => {
+                console.warn(error);
+                domValue.cardContainer.innerHTML = `<h1 style="color: red">${error.message}</h1>`;
+            })
+            ;
+    }
+
+    function renderCard(data) {
+        data.goods.forEach(card => {
+            const cardNode = template.card(card);
+            domValue.cardContainer.appendChild(cardNode);
+
+            domValue.cards = document.querySelectorAll('.goods .card');
+        });
+        return true;
+    }
+
+    function renderCatalog() {
+        const {cards, catalogButton, catalogContainer} = domValue;
+        const categores = new Set();
+
+        cards.forEach(card => {
+            categores.add(card.dataset.category);
+        });
+
+        categores.forEach(category => {
+            const el = document.createElement('li');
+            el.textContent = category;
+            catalogContainer.appendChild(el);
+        });
+
+
+        catalogButton.addEventListener('click', () => {
+            const display = domValue.catalogWrapper.computedStyleMap().get('display').value;
+            domValue.catalogWrapper.style.display = display === 'none' ? 'block' : 'none';
+        });
+    }
+
+    getServerData()
+        .then(() => {
+            toggleCheckbox();
+            bucketApi();
+            filterCard();
+            renderCatalog();
+        })
+    ;
+
 })();
